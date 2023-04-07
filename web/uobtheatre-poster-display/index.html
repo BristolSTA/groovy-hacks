@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <div class="flex flex-wrap justify-between gap-4 p-10">
+        <template v-for="(production, i) in productions" :key="i">
+          <div
+            class="w-full py-3 text-2xl text-center bg-green-400"
+            v-if="i == 0 || (academicYear(production) !== academicYear(productions[i-1]))"
+          >
+            {{academicYear(production)}}/{{academicYear(production)+1}}
+          </div>
+          <img :src="production.posterImage.url" class="w-60" />
+        </template>
+      </div>
+      <div class="flex items-center justify-center">
+        <div v-if="loading">Loading...</div>
+        <button
+          v-else-if="pageInfo?.hasNextPage"
+          @click="retrieveProductions"
+          class="bg-blue-500 rounded px-2 py-1 hover:bg-blue-600"
+        >
+          Load More
+        </button>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          productions: [],
+          pageInfo: null,
+          loading: true,
+        };
+      },
+      mounted() {
+        this.retrieveProductions();
+      },
+      methods: {
+        async retrieveProductions() {
+          this.loading = true;
+          const gqlRequest = `query {
+                    productions(orderBy: "-start", first: 20${
+                      this.pageInfo?.hasNextPage
+                        ? ', after: "' + this.pageInfo.endCursor + '"'
+                        : ""
+                    }) {
+                        pageInfo {
+                            hasNextPage
+                            hasPreviousPage
+                            startCursor
+                            endCursor
+                        }
+                        edges {
+                            node {
+                                start
+                                posterImage {
+                                    url
+                                }
+                            }
+                        }
+                    }
+                }
+            `;
+
+          const response = await (
+            await fetch(
+              "https://proxy.cors.sh/https://api.uobtheatre.com/graphql/",
+              {
+                method: "post",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ query: gqlRequest }),
+              }
+            )
+          ).json();
+          this.productions.push(
+            ...response.data.productions.edges.map((edge) => edge.node)
+          );
+          this.pageInfo = response.data.productions.pageInfo;
+          this.loading = false;
+        },
+        academicYear(production) {
+          const date = new Date(production.start);
+
+          if (date.getMonth() < 7) {
+            //August
+            return date.getFullYear() - 1;
+          }
+          return date.getFullYear();
+        },
+      },
+    }).mount("#app");
+  </script>
+</html>
