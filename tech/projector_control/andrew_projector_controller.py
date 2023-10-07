@@ -5,8 +5,10 @@ HOST = "192.168.0.111"  # Standard loopback interface address (localhost)
 PORT = 23 # Port to listen on (non-privileged ports are > 1023)
 
 class Command(str, Enum):
-    SHUTTER_ON = "be:ef:03:06:00:6b:d9:01:00:20:30:01:00"
+    SHUTTER_ON  = "be:ef:03:06:00:6b:d9:01:00:20:30:01:00"
     SHUTTER_OFF = "be:ef:03:06:00:fb:d8:01:00:20:30:00:00"
+    POWER_ON    = "be:ef:03:06:00:BA:D2:01:00:00:60:01:00"
+    POWER_OFF   = "be:ef:03:06:00:2A:D3:01:00:00:60:00:00"
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     print("Connecting to server")
