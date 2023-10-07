@@ -1,7 +1,7 @@
 import socket
 from enum import Enum 
 
-HOST = "192.168.0.111"  # Standard loopback interface address (localhost)
+HOST = "52DC6A.localdomain"  # hostname of the projector
 PORT = 23 # Port to listen on (non-privileged ports are > 1023)
 
 class Command(str, Enum):
