@@ -7,19 +7,16 @@ import tkinter as tk
 #example usage:
 #python3 ./danceShowPython.py start 2 --at 100 --tc y
 
+# For example, cue 8 is the video, whereas cue 8.2 launches the timecode,
+# and cue 8.3 launches the sound without a timecode
 cue_for_video = ''
 cue_for_tc = '.2'
 cue_for_no_tc = '.3'
 
 
-#ip = "192.168.0.182"
-ip = "0.0.0.0"
-port = 53000
-client = udp_client.SimpleUDPClient(ip, port)
-
-desk_ip = "192.168.0.17"
-desk_port = 8000
-desk_client = udp_client.SimpleUDPClient(desk_ip, desk_port)
+mac_ip = "192.168.2.23"
+mac_port = 8000
+mac_client = udp_client.SimpleUDPClient(mac_ip, mac_port)
 
 
 def load_cue_list(cue_number):
@@ -27,7 +24,7 @@ def load_cue_list(cue_number):
 
 
 def _stop():
-    client.send_message(f"/panic", "")
+    mac_client.send_message(f"/panic", "")
 
 
 def _start(cue_number, timecode, at, video):
@@ -46,7 +43,7 @@ def _start(cue_number, timecode, at, video):
                 mins, seconds = times
                 seconds = int(mins) * 60 + int(seconds)
             print(f"Sending cue {cue_number} at {seconds} seconds")
-            client.send_message(f"{cue}/loadActionAt", seconds)
+            mac_client.send_message(f"{cue}/loadActionAt", seconds)
    
    
     else:
@@ -55,7 +52,7 @@ def _start(cue_number, timecode, at, video):
         video=False
     
     
-    client.send_message(f"{cue}/go", "")
+    mac_client.send_message(f"{cue}/go", "")
 
 
 @click.group()
@@ -86,11 +83,21 @@ def create_gui():
     canvas1.pack()
 
     cue_number_input = tk.Entry(root)
-    canvas1.create_window(200, 140, window=cue_number_input)
+
+    canvas1.create_text(200,50,fill="black",font="Calibri 10",
+                        text=f"Use the toggles to select which part of the cue to run from.\n\nIf video is enabled, it will run from <cue>{cue_for_video},\nIf timecode is enabled, it will run from <cue>{cue_for_tc},\nand if timecode is disabled, it will run from <cue>{cue_for_no_tc}.", justify="center")
+
+    canvas1.create_text(200,160,fill="black",font="Calibri 10",
+                    text=f"Enter the cue number below:", justify="center")
+
+    canvas1.create_window(200, 182, window=cue_number_input)
 
     time_input = tk.Entry(root)
 
-    canvas1.create_window(200, 250, window=time_input)
+    canvas1.create_text(200,252,fill="black",font="Calibri 10",
+                text=f"Enter the time to start from below:", justify="center")
+
+    canvas1.create_window(200, 280, window=time_input)
 
     def go_command():
         global running
@@ -123,10 +130,10 @@ def create_gui():
             timecode_toggle.config(highlightbackground="red")
 
     timecode_toggle = tk.Button(
-        text="Toggle TC", width=5, relief="sunken", command=toggle_timecode, highlightbackground="red",
+        text="Toggle TC", width=10, relief="sunken", command=toggle_timecode, highlightbackground="red",
     )
 
-    canvas1.create_window(150, 100, window=timecode_toggle)
+    canvas1.create_window(130, 120, window=timecode_toggle)
 
     def toggle_video():
         if video_toggle.config("relief")[-1] == "sunken":
@@ -137,15 +144,15 @@ def create_gui():
             video_toggle.config(highlightbackground="red")
 
     video_toggle = tk.Button(
-        text="Toggle video", width=5, relief="sunken", command=toggle_video, highlightbackground="red"
+        text="Toggle video", width=10, relief="sunken", command=toggle_video, highlightbackground="red"
     )
 
-    canvas1.create_window(250, 100, window=video_toggle)
+    canvas1.create_window(270, 120, window=video_toggle)
 
     go = tk.Button(text="Play", command=go_command)
     stop = tk.Button(text="Stop", command=_stop)
-    canvas1.create_window(250, 180, window=go)
-    canvas1.create_window(150, 180, window=stop)
+    canvas1.create_window(250, 217, window=go)
+    canvas1.create_window(150, 217, window=stop)
 
     def go_event(event):
         global running
@@ -187,6 +194,6 @@ def create_gui():
 
 if __name__ == "__main__":
     running = False
-    # client.send_message(f"/cue/4/loadActionAt", 10)
+    # mac_client.send_message(f"/cue/4/loadActionAt", 10)
     #cli()
     create_gui()
