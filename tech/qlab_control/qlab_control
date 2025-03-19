@@ -4,19 +4,15 @@ import click
 
 import tkinter as tk
 
-#example usage:
-#python3 ./danceShowPython.py start 2 --at 100 --tc y
+ip = "192.168.2.22"
+#ip="127.0.0.1"
+# ip = "192.168.0.70"
+port = 53000
+client = udp_client.SimpleUDPClient(ip, port)
 
-# For example, cue 8 is the video, whereas cue 8.2 launches the timecode,
-# and cue 8.3 launches the sound without a timecode
-cue_for_video = ''
-cue_for_tc = '.2'
-cue_for_no_tc = '.3'
-
-
-mac_ip = "192.168.2.23"
-mac_port = 8000
-mac_client = udp_client.SimpleUDPClient(mac_ip, mac_port)
+desk_ip = "192.168.1.7"
+desk_port = 8000
+desk_client = udp_client.SimpleUDPClient(desk_ip, desk_port)
 
 
 def load_cue_list(cue_number):
@@ -24,35 +20,30 @@ def load_cue_list(cue_number):
 
 
 def _stop():
-    mac_client.send_message(f"/panic", "")
+    client.send_message(f"/panic", "")
+    print("stop")
 
 
-def _start(cue_number, timecode, at, video):
-    
-    if (video==False):
-        cue = f"/cue/{cue_number}{cue_for_no_tc if not timecode else cue_for_tc}"
-        
-        if timecode:
-             # load_cue_list(cue_number)
-             pass
-        if at:
-            times = at.split(":")
-            if len(times) == 1:
-                seconds = int(times[0])
-            else:
-                mins, seconds = times
-                seconds = int(mins) * 60 + int(seconds)
-            print(f"Sending cue {cue_number} at {seconds} seconds")
-            mac_client.send_message(f"{cue}/loadActionAt", seconds)
-   
-   
-    else:
-        cue = f"/cue/{cue_number}"
-        print(f"Sending video cue {cue_number}")
-        video=False
-    
-    
-    mac_client.send_message(f"{cue}/go", "")
+def _start(cue_number, timecode, at):
+    cue = f"/cue/{cue_number}{'.3' if not timecode else '.2'}"
+
+    if timecode:
+        # load_cue_list(cue_number)
+        pass
+    if at:
+        times = at.split(":")
+        if len(times) == 1:
+            seconds = int(times[0])
+        else:
+            mins, seconds = times
+            seconds = int(mins) * 60 + int(seconds)
+        print(f"Sending cue {cue_number} at {seconds} seconds",end="")
+        if(timecode):
+            print(" with Timecode")
+        else:
+            print()
+        client.send_message(f"{cue}/loadActionAt", seconds)
+    client.send_message(f"{cue}/go", "")
 
 
 @click.group()
@@ -64,136 +55,97 @@ def cli():
 @cli.command()
 @click.argument("cue_number", required=True)
 @click.option("--timecode", "-t", default=True, type=bool)
-@click.option("--video", "-v", default=False, type=bool)
 @click.option("--at", "-a", required=False, type=str)
-def start(cue_number, timecode, at, video):
-    _start(cue_number, timecode, at, video)
-    if click.confirm("Stop?", default="yes"):
+def start(cue_number, timecode, at):
+    _start(cue_number, timecode, at)
+    value = click.prompt("Stop?", type=bool)
+    if value:
         _stop()
 
 
 @cli.command()
 def stop():
     _stop()
-    
+
+
 def create_gui():
     root = tk.Tk()
+    global timecodeEnable
+    timecodeEnable =tk.IntVar()
 
     canvas1 = tk.Canvas(root, width=400, height=300)
     canvas1.pack()
 
     cue_number_input = tk.Entry(root)
+    canvas1.create_window(200, 140, window=cue_number_input)
 
-    canvas1.create_text(200,50,fill="black",font="Calibri 10",
-                        text=f"Use the toggles to select which part of the cue to run from.\n\nIf video is enabled, it will run from <cue>{cue_for_video},\nIf timecode is enabled, it will run from <cue>{cue_for_tc},\nand if timecode is disabled, it will run from <cue>{cue_for_no_tc}.", justify="center")
+    second_input = tk.Entry(root)
+    min_input = tk.Entry(root)
+    second_input.insert(0,"0")
+    min_input.insert(0,"0")
 
-    canvas1.create_text(200,160,fill="black",font="Calibri 10",
-                    text=f"Enter the cue number below:", justify="center")
-
-    canvas1.create_window(200, 182, window=cue_number_input)
-
-    time_input = tk.Entry(root)
-
-    canvas1.create_text(200,252,fill="black",font="Calibri 10",
-                text=f"Enter the time to start from below:", justify="center")
-
-    canvas1.create_window(200, 280, window=time_input)
+    canvas1.create_window(100, 250, window=min_input)
+    canvas1.create_window(300, 250, window=second_input)
+    canvas1.create_text(200,120,text="Cue number")
+    canvas1.create_text(100,270,text="Minuite")
+    canvas1.create_text(300,270,text="Seccond")
+    
 
     def go_command():
-        global running
-        
-        if(running == False):
-            if time_input.get():
-                at = f"{time_input.get()}"
-            else:
-                at = None
-
-            _start(
-                int(cue_number_input.get()),
-                timecode_toggle.config("relief")[-1] == "sunken",
-                at,
-                video_toggle.config("relief")[-1] == "sunken",
-            )
-            go.config(text="Pause")
-            running = True
+        global timecodeEnable
+        if min_input.get() and second_input.get():
+            at = f"{min_input.get()}:{second_input.get()}"
+        elif second_input.get():
+            at = f"{second_input.get()}"
+        elif min_input.get():
+            at = f"{min_input.get()}:0"
         else:
-            _stop()
-            running = False
-            go.config(text="Play")
+            at = None
+
+        _start(
+            int(cue_number_input.get()),
+            timecodeEnable.get(),
+            at,
+        )
 
     def toggle_timecode():
         if timecode_toggle.config("relief")[-1] == "sunken":
             timecode_toggle.config(relief="raised")
-            timecode_toggle.config(highlightbackground="grey")
         else:
             timecode_toggle.config(relief="sunken")
-            timecode_toggle.config(highlightbackground="red")
 
-    timecode_toggle = tk.Button(
-        text="Toggle TC", width=10, relief="sunken", command=toggle_timecode, highlightbackground="red",
+    timecode_toggle = tk.Checkbutton(
+        text="Toggle TC", width=12, variable=timecodeEnable,onvalue=1,offvalue=0, command=toggle_timecode
     )
 
-    canvas1.create_window(130, 120, window=timecode_toggle)
+    canvas1.create_window(200, 205, window=timecode_toggle)
 
-    def toggle_video():
-        if video_toggle.config("relief")[-1] == "sunken":
-            video_toggle.config(relief="raised")
-            video_toggle.config(highlightbackground="grey")
-        else:
-            video_toggle.config(relief="sunken")
-            video_toggle.config(highlightbackground="red")
-
-    video_toggle = tk.Button(
-        text="Toggle video", width=10, relief="sunken", command=toggle_video, highlightbackground="red"
-    )
-
-    canvas1.create_window(270, 120, window=video_toggle)
-
-    go = tk.Button(text="Play", command=go_command)
+    go = tk.Button(text="Go", command=go_command)
     stop = tk.Button(text="Stop", command=_stop)
-    canvas1.create_window(250, 217, window=go)
-    canvas1.create_window(150, 217, window=stop)
+    canvas1.create_window(150, 180, window=go)
+    canvas1.create_window(250, 180, window=stop)
 
     def go_event(event):
-        global running
-        
-        if (running == False):
-            go_command()
-        else:
-            _stop()
-            _stop()
-            go.config(text="Play")
-            running = False
-            
+        go_command()
+
     def stop_command(event):
-        global running
-        
         _stop()
-        running = False
 
     def panic_command(event):
-        global running
-        
         _stop()
         _stop()
-        running = False
 
     def toggle_timecode_command(event):
         toggle_timecode()
 
-    def toggle_video_command(event):
-        toggle_video()
-
     root.bind("<Return>", go_event)
-    root.bind("<Escape>", panic_command)
+    root.bind("<Escape>", stop_command)
     root.bind("p", panic_command)
     root.bind("t", toggle_timecode_command)
-    root.bind("v", toggle_video_command)
     root.mainloop()
 
 
 if __name__ == "__main__":
-    running = False
-    # mac_client.send_message(f"/cue/4/loadActionAt", 10)
+    # client.send_message(f"/cue/4/loadActionAt", 10)
     #cli()
     create_gui()
