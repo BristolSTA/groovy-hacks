@@ -1,0 +1,6 @@
+click==8.1.8
+colorama==0.4.6
+mido==1.3.3
+packaging==24.2
+python-rtmidi==1.5.8
+timecode==1.4.1
